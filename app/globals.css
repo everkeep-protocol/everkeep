@@ -1,0 +1,57 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 222 47% 11%;
+    --foreground: 210 40% 98%;
+    --card: 217 33% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 217 33% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 160 100% 50%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 22%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 22%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 187 92% 53%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 20% 65% / 0.15;
+    --input: 215 20% 65% / 0.2;
+    --ring: 160 100% 50%;
+    --radius: 0.75rem;
+  }
+
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-everkeep-slate text-foreground antialiased;
+    background-image: theme("backgroundImage.hero-radial");
+    background-attachment: fixed;
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply rounded-lg border border-white/10 bg-slate-800/45 shadow-glass backdrop-blur-xl;
+  }
+
+  .glass-card-active {
+    @apply glass-card border-everkeep-emerald/35 shadow-glow-sm;
+  }
+
+  .neon-button-glow {
+    @apply transition-shadow duration-300 hover:shadow-glow-md focus-visible:shadow-glow-md;
+  }
+
+  .text-gradient-emerald {
+    @apply bg-gradient-to-r from-everkeep-emerald to-everkeep-cyan bg-clip-text text-transparent;
+  }
+}
