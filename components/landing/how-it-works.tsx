@@ -19,13 +19,13 @@ const steps: {
     icon: FilePlus2,
     title: "Create Plan",
     description: "Connect your wallet, choose a beneficiary, and define the inheritance rules.",
-    instruction: "initialize",
+    instruction: "initialize_vault",
   },
   {
     icon: ArrowDownToLine,
-    title: "Deposit Assets",
-    description: "Move SOL and supported SPL tokens into the program-controlled vault.",
-    instruction: "deposit",
+    title: "Approve SPL Tokens",
+    description: "Make the vault PDA a delegate for token allowances. Assets stay in your wallet.",
+    instruction: "approve_checked",
   },
   {
     icon: Activity,
@@ -42,7 +42,7 @@ const steps: {
     icon: Gift,
     title: "Claim",
     description: "The beneficiary submits a claim once the on-chain rules are met.",
-    instruction: "claim",
+    instruction: "claim_delegated_tokens",
   },
 ];
 
@@ -57,11 +57,11 @@ export function HowItWorks() {
           From ownership to inheritance in five steps
         </h2>
       </div>
-      <ol className="grid gap-4 md:grid-cols-5">
+      <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {steps.map((step, i) => (
           <li
             key={step.title}
-            className="glass-card relative flex flex-col gap-3 p-5 transition-colors hover:border-everkeep-emerald/25"
+            className="glass-card relative flex min-w-0 flex-col gap-3 p-5 transition-colors hover:border-everkeep-emerald/25 sm:last:col-span-2 lg:last:col-span-1 lg:p-4 xl:p-5"
           >
             <div className="flex items-center justify-between">
               <step.icon className="h-5 w-5 text-everkeep-emerald" />

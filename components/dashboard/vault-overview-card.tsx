@@ -3,7 +3,7 @@
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { AddressChip } from "@/components/everkeep/address-chip";
-import { formatDate } from "@/lib/format";
+import { formatDate, formatDuration } from "@/lib/format";
 import type { VaultViewModel } from "@/types/vault";
 import { AssetBreakdown } from "./asset-breakdown";
 import { CheckInCountdown } from "./check-in-countdown";
@@ -24,8 +24,8 @@ export function VaultOverviewCard({ vault }: { vault: VaultViewModel }) {
       )}
     >
       <CardHeader className="flex flex-row items-start justify-between gap-4">
-        <div>
-          <CardTitle className="flex items-center gap-2">
+        <div className="min-w-0">
+          <CardTitle className="flex flex-wrap items-center gap-2">
             Active Vault
             <Badge variant={statusBadge}>
               {vault.conditionStatus === "active"
@@ -36,7 +36,7 @@ export function VaultOverviewCard({ vault }: { vault: VaultViewModel }) {
             </Badge>
           </CardTitle>
           <p className="mt-1 text-sm text-muted-foreground">
-            Program-enforced inheritance vault on {vault.planId}
+            Program-enforced inheritance vault #{vault.nonce}
           </p>
         </div>
       </CardHeader>
@@ -48,7 +48,7 @@ export function VaultOverviewCard({ vault }: { vault: VaultViewModel }) {
         </div>
         <div className="grid gap-4 sm:grid-cols-3">
           {[
-            ["Inactivity threshold", `${vault.inactivityThresholdDays} days`],
+            ["Inactivity threshold", formatDuration(vault.inactivityPeriodSeconds)],
             ["Last check-in", formatDate(vault.lastCheckInAt)],
             ["Next check-in", formatDate(vault.nextCheckInDeadlineAt)],
           ].map(([label, value]) => (

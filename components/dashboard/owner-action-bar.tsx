@@ -17,24 +17,19 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 
 export function OwnerActionBar() {
-  const { checkIn, openWizard, cancelPlan } = useEverKeepApp();
-  const { toast } = useToast();
+  const { checkIn, openWizard, cancelPlan, vault } = useEverKeepApp();
   const [checkingIn, setCheckingIn] = useState(false);
   const [cancelling, setCancelling] = useState(false);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const delegationCount = vault?.delegations.length ?? 0;
 
   const onCheckIn = async () => {
     setCheckingIn(true);
     try {
       await checkIn();
-      toast({
-        title: "Check-in recorded",
-        description: "Last activity timestamp updated on-chain (simulated).",
-      });
     } finally {
       setCheckingIn(false);
     }
@@ -43,12 +38,7 @@ export function OwnerActionBar() {
   const onCancel = async () => {
     setCancelling(true);
     try {
-      await cancelPlan();
-      setCancelOpen(false);
-      toast({
-        title: "Plan cancelled",
-        description: "Vault closed and assets returned (simulated).",
-      });
+      if (await cancelPlan()) setCancelOpen(false);
     } finally {
       setCancelling(false);
     }
@@ -72,7 +62,7 @@ export function OwnerActionBar() {
         <Button
           variant="outline"
           className="w-full gap-2"
-          onClick={() => openWizard("update")}
+          disabled
         >
           <Pencil className="h-4 w-4" />
           Edit / Update Plan
@@ -80,10 +70,10 @@ export function OwnerActionBar() {
         <Button
           variant="outline"
           className="w-full gap-2"
-          onClick={() => openWizard("deposit-only")}
+          onClick={() => openWizard("approve")}
         >
           <ArrowDownToLine className="h-4 w-4" />
-          Deposit Assets
+          Approve SPL Tokens
         </Button>
         <Button
           variant="destructive"
@@ -91,21 +81,31 @@ export function OwnerActionBar() {
           onClick={() => setCancelOpen(true)}
         >
           <Trash2 className="h-4 w-4" />
-          Cancel & Withdraw
+          Cancel Vault
         </Button>
       </div>
+      <p className="-mt-3 text-xs text-muted-foreground">
+        Editing is unavailable: the program has no update instruction. Cancel
+        and create a new vault to change the beneficiary or period.
+      </p>
 
-      <Dialog open={cancelOpen} onOpenChange={setCancelOpen}>
+      <Dialog open={cancelOpen} onOpenChange={(o) => !cancelling && setCancelOpen(o)}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Cancel inheritance plan?</DialogTitle>
             <DialogDescription>
-              This will close your vault and withdraw protected assets back to
-              your wallet. This action cannot be undone.
+              This revokes the vault&apos;s delegation on {delegationCount} token
+              account{delegationCount === 1 ? "" : "s"} and closes the vault,
+              refunding its rent to you. Your tokens never left your wallet.
+              This cannot be undone; a new vault will get a new address.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setCancelOpen(false)}>
+            <Button
+              variant="outline"
+              onClick={() => setCancelOpen(false)}
+              disabled={cancelling}
+            >
               Keep plan
             </Button>
             <Button

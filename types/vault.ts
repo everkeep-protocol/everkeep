@@ -1,34 +1,33 @@
-export type PlanStatus = "none" | "active" | "cancelled" | "claimed";
-
 export type VaultConditionStatus = "active" | "warning" | "claimable";
 
-export interface SplAssetMock {
+/** An owner token account whose SPL delegate is the vault PDA. */
+export interface TokenDelegation {
+  tokenAccount: string;
   mint: string;
-  symbol: string;
-  name: string;
-  amount: string;
+  /** Known symbol (e.g. PYUSD) on the configured cluster, else null. */
+  symbol: string | null;
+  programId: string;
   decimals: number;
-  iconUrl?: string;
+  balance: bigint;
+  delegatedAmount: bigint;
+  /** min(balance, delegatedAmount): what claim_delegated_tokens can move now. */
+  claimable: bigint;
+  /** Set when the vault cannot move this token (frozen, transfer hook, ...). */
+  unsupportedReason: string | null;
 }
 
-export interface InheritancePlanMock {
-  planId: string;
+export interface VaultViewModel {
   vaultPda: string;
   owner: string;
   beneficiary: string;
-  inactivityThresholdDays: number;
+  nonce: string;
+  isActive: boolean;
+  inactivityPeriodSeconds: number;
   lastCheckInAt: string;
-  createdAt: string;
-  status: Exclude<PlanStatus, "none">;
-  assets: {
-    solLamports: number;
-    spl: SplAssetMock[];
-  };
-}
-
-export interface VaultViewModel extends InheritancePlanMock {
-  conditionStatus: VaultConditionStatus;
   nextCheckInDeadlineAt: string;
   claimEligibleAt: string;
+  conditionStatus: VaultConditionStatus;
+  delegations: TokenDelegation[];
+  hasClaimableTokens: boolean;
   totalProtectedDisplay: string;
 }

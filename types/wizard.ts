@@ -1,23 +1,25 @@
 export interface CreatePlanDraft {
   beneficiary: string;
-  inactivityThresholdDays: number;
+  /** Selected preset, in seconds. */
+  inactivityPeriodSeconds: number;
   customThresholdDays?: number;
-  depositSol: number;
-  depositSplMints: string[];
+  /** Token account address -> UI amount to approve for the vault PDA. */
+  approvals: Record<string, string>;
 }
 
 export type InstructionName =
-  | "initialize"
-  | "deposit"
+  | "initialize_vault"
+  | "approve_checked"
   | "check_in"
-  | "update_plan"
-  | "cancel"
-  | "claim";
+  | "claim_delegated_tokens"
+  | "cancel_vault"
+  | "create_ata";
 
-export interface SimulatedInstruction {
+export interface PlannedInstruction {
   name: InstructionName;
   accountsSummary: string[];
-  estFeeSol: number;
+  /** Rent or other lamports moved by this instruction, excluding signature fees. */
+  estCostSol: number;
 }
 
-export type WizardMode = "create" | "update" | "deposit-only";
+export type WizardMode = "create" | "approve";

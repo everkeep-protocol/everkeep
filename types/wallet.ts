@@ -1,13 +1,11 @@
-export type NetworkCluster = "devnet" | "mainnet";
+export type NetworkCluster = "localnet" | "devnet" | "mainnet";
 
 export type WalletConnectionStatus =
   | "disconnected"
   | "connecting"
   | "connected";
 
-export type WalletRole = "owner" | "beneficiary";
-
-export interface WalletMockState {
+export interface WalletState {
   status: WalletConnectionStatus;
   publicKey: string | null;
   cluster: NetworkCluster;

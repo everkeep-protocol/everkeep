@@ -1,51 +1,80 @@
 "use client";
 
+import { useEffect, useState } from "react";
+import { useConnection } from "@solana/wallet-adapter-react";
+import { LAMPORTS_PER_SOL } from "@solana/web3.js";
 import { truncateAddress } from "@/lib/validators";
+import { formatDuration } from "@/lib/format";
+import { effectivePeriodSeconds, resolveApprovals } from "@/lib/everkeep/draft";
+import { MAX_TOKEN_IXS_PER_TX } from "@/lib/everkeep/instructions";
+import { formatTokenAmount, tokenProgramLabel } from "@/lib/everkeep/tokens";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 import { TxReviewPanel } from "../tx-review-panel";
-import { MOCK_SPL_CATALOG } from "@/data/mocks/spl-tokens";
-import {
-  MOCK_TX_CREATE_PLAN,
-  MOCK_TX_DEPOSIT_ONLY,
-  MOCK_TX_UPDATE_PLAN,
-} from "@/data/mocks/transactions";
-import type { CreatePlanDraft, WizardMode } from "@/types/wizard";
+import type { PlannedInstruction } from "@/types/wizard";
 
-function instructionsForMode(mode: WizardMode, draft: CreatePlanDraft) {
-  switch (mode) {
-    case "update": {
-      const topUp = draft.depositSol > 0 || draft.depositSplMints.length > 0;
-      return topUp
-        ? [...MOCK_TX_UPDATE_PLAN, ...MOCK_TX_DEPOSIT_ONLY]
-        : MOCK_TX_UPDATE_PLAN;
-    }
-    case "deposit-only":
-      return MOCK_TX_DEPOSIT_ONLY;
-    default:
-      return MOCK_TX_CREATE_PLAN;
-  }
-}
+/** 8-byte discriminator + InitSpace of `Vault` / `OwnerRegistry` in the program. */
+const VAULT_ACCOUNT_SIZE = 8 + 32 + 32 + 8 + 8 + 1 + 8 + 1;
+const REGISTRY_ACCOUNT_SIZE = 8 + 32 + 8 + (1 + 32) + 1;
 
 export function StepSummary() {
-  const { wizardDraft, wizardMode } = useEverKeepApp();
-  const days =
-    wizardDraft.customThresholdDays ?? wizardDraft.inactivityThresholdDays;
-  const splSymbols = MOCK_SPL_CATALOG.filter((t) =>
-    wizardDraft.depositSplMints.includes(t.mint),
-  ).map((t) => t.symbol);
-  const showDeposit = wizardMode !== "update" || wizardDraft.depositSol > 0;
+  const { wizardDraft, wizardMode, ownerTokenAccounts, vault } = useEverKeepApp();
+  const { connection } = useConnection();
+  const [rentSol, setRentSol] = useState(0);
+
+  const period = effectivePeriodSeconds(wizardDraft);
+  const approvals = resolveApprovals(wizardDraft, ownerTokenAccounts) ?? [];
+
+  useEffect(() => {
+    if (wizardMode !== "create") return;
+    let cancelled = false;
+    // Registry is created only on the owner's first vault; show the upper bound.
+    Promise.all([
+      connection.getMinimumBalanceForRentExemption(VAULT_ACCOUNT_SIZE),
+      connection.getMinimumBalanceForRentExemption(REGISTRY_ACCOUNT_SIZE),
+    ])
+      .then(([v, r]) => !cancelled && setRentSol((v + r) / LAMPORTS_PER_SOL))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [connection, wizardMode]);
+
+  const instructions: PlannedInstruction[] = [
+    ...(wizardMode === "create"
+      ? [
+          {
+            name: "initialize_vault" as const,
+            accountsSummary: ["Owner", "Registry PDA", "Vault PDA", "System Program"],
+            estCostSol: rentSol,
+          },
+        ]
+      : []),
+    ...approvals.map((a) => ({
+      name: "approve_checked" as const,
+      accountsSummary: [
+        `Token account ${truncateAddress(a.account.address.toBase58(), 4)}`,
+        `Mint ${a.account.symbol ?? truncateAddress(a.account.mint.toBase58(), 4)} (${tokenProgramLabel(a.account.programId)})`,
+        "Delegate: Vault PDA",
+        "Owner",
+      ],
+      estCostSol: 0,
+    })),
+  ];
+  const transactions = Math.max(
+    1,
+    Math.ceil(approvals.length / MAX_TOKEN_IXS_PER_TX),
+  );
 
   return (
     <div className="space-y-4">
       <div>
         <h3 className="text-lg font-medium">Summary & confirm</h3>
         <p className="text-sm text-muted-foreground">
-          Review plan parameters before signing the simulated on-chain
-          transaction.
+          Review the plan before signing with your wallet.
         </p>
       </div>
       <dl className="grid gap-3 rounded-lg border border-white/10 p-4 text-sm">
-        {wizardMode !== "deposit-only" && (
+        {wizardMode === "create" ? (
           <>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Beneficiary</dt>
@@ -55,26 +84,32 @@ export function StepSummary() {
             </div>
             <div className="flex justify-between gap-4">
               <dt className="text-muted-foreground">Inactivity</dt>
-              <dd>{days} days</dd>
+              <dd>{formatDuration(period)}</dd>
             </div>
           </>
+        ) : (
+          vault && (
+            <div className="flex justify-between gap-4">
+              <dt className="text-muted-foreground">Vault PDA</dt>
+              <dd className="font-mono">{truncateAddress(vault.vaultPda, 4)}</dd>
+            </div>
+          )
         )}
-        {showDeposit && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">Deposit</dt>
-            <dd>{wizardDraft.depositSol} SOL</dd>
-          </div>
-        )}
-        {splSymbols.length > 0 && (
-          <div className="flex justify-between gap-4">
-            <dt className="text-muted-foreground">SPL</dt>
-            <dd>{splSymbols.join(", ")}</dd>
-          </div>
-        )}
+        <div className="flex justify-between gap-4">
+          <dt className="text-muted-foreground">Allowances</dt>
+          <dd className="text-right">
+            {approvals.length === 0
+              ? "None"
+              : approvals.map((a) => (
+                  <span key={a.account.address.toBase58()} className="block font-mono text-xs">
+                    {formatTokenAmount(a.amount, a.account.decimals)}{" "}
+                    {a.account.symbol ?? truncateAddress(a.account.mint.toBase58(), 4)}
+                  </span>
+                ))}
+          </dd>
+        </div>
       </dl>
-      <TxReviewPanel
-        instructions={instructionsForMode(wizardMode, wizardDraft)}
-      />
+      <TxReviewPanel instructions={instructions} transactions={transactions} />
     </div>
   );
 }

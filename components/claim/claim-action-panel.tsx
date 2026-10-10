@@ -4,33 +4,47 @@ import { useState } from "react";
 import { Gift, Loader2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TxReviewPanel } from "@/components/wizard/tx-review-panel";
-import { MOCK_TX_CLAIM } from "@/data/mocks/transactions";
-import { useToast } from "@/hooks/use-toast";
+import { useCountdown } from "@/hooks/use-countdown";
+import { MAX_TOKEN_IXS_PER_TX } from "@/lib/everkeep/instructions";
+import { tokenProgramLabel } from "@/lib/everkeep/tokens";
+import { tokenLabel } from "@/lib/everkeep/vault";
 import { truncateAddress } from "@/lib/validators";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 import type { VaultViewModel } from "@/types/vault";
+import type { PlannedInstruction } from "@/types/wizard";
 
 export function ClaimActionPanel({ vault }: { vault: VaultViewModel }) {
-  const { wallet, claimAssets, connectWallet, disconnectWallet } =
+  const { wallet, phantomInstalled, claimAssets, connectWallet, disconnectWallet } =
     useEverKeepApp();
-  const { toast } = useToast();
   const [claiming, setClaiming] = useState(false);
+  const { expired } = useCountdown(vault.claimEligibleAt);
 
   const isBeneficiary =
-    wallet.status === "connected" &&
-    wallet.publicKey === vault.beneficiary;
-  const claimable =
-    vault.conditionStatus === "claimable" && vault.status !== "claimed";
-  const claimed = vault.status === "claimed";
+    wallet.status === "connected" && wallet.publicKey === vault.beneficiary;
+  const claimableDelegations = vault.delegations.filter((d) => d.claimable > BigInt(0));
+
+  const instructions: PlannedInstruction[] = claimableDelegations.flatMap((d) => [
+    {
+      name: "create_ata" as const,
+      accountsSummary: ["Beneficiary", `${tokenLabel(d)} (${tokenProgramLabel(d.programId)})`],
+      estCostSol: 0,
+    },
+    {
+      name: "claim_delegated_tokens" as const,
+      accountsSummary: [
+        "Beneficiary",
+        "Vault PDA",
+        `Owner token account ${truncateAddress(d.tokenAccount, 4)}`,
+        "Beneficiary ATA",
+      ],
+      estCostSol: 0,
+    },
+  ]);
 
   const onClaim = async () => {
     setClaiming(true);
     try {
       await claimAssets();
-      toast({
-        title: "Inheritance claimed",
-        description: "Assets transferred to beneficiary (simulated).",
-      });
     } finally {
       setClaiming(false);
     }
@@ -38,16 +52,21 @@ export function ClaimActionPanel({ vault }: { vault: VaultViewModel }) {
 
   return (
     <div className="space-y-4">
-      <TxReviewPanel instructions={MOCK_TX_CLAIM} />
+      {instructions.length > 0 && (
+        <TxReviewPanel
+          instructions={instructions}
+          transactions={Math.ceil(claimableDelegations.length / MAX_TOKEN_IXS_PER_TX)}
+        />
+      )}
       {wallet.status !== "connected" ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <p className="text-sm text-muted-foreground">
-            Connect the beneficiary wallet to execute claim().
+          <p className="min-w-0 text-sm text-muted-foreground [overflow-wrap:anywhere]">
+            Connect the beneficiary wallet to execute claim_delegated_tokens().
           </p>
           <Button
             variant="outline"
             disabled={wallet.status === "connecting"}
-            onClick={() => connectWallet("beneficiary")}
+            onClick={connectWallet}
             className="gap-2"
           >
             {wallet.status === "connecting" ? (
@@ -55,27 +74,28 @@ export function ClaimActionPanel({ vault }: { vault: VaultViewModel }) {
             ) : (
               <Wallet className="h-4 w-4" />
             )}
-            Connect as beneficiary
+            {phantomInstalled ? "Connect beneficiary wallet" : "Install Phantom"}
           </Button>
         </div>
       ) : !isBeneficiary ? (
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-amber-200/90">
             Connected wallet ({truncateAddress(wallet.publicKey!, 4)}) does not
-            match the plan beneficiary.
+            match the plan beneficiary. Switch accounts in Phantom.
           </p>
           <Button variant="outline" onClick={disconnectWallet}>
-            Switch wallet
+            Disconnect
           </Button>
         </div>
-      ) : claimed ? (
+      ) : expired && claimableDelegations.length === 0 ? (
         <p className="text-sm text-everkeep-emerald">
-          This vault has already been claimed.
+          Nothing is claimable: every allowance has been claimed, revoked, or
+          spent by the owner.
         </p>
       ) : (
         <Button
           className="w-full gap-2"
-          disabled={!claimable || claiming}
+          disabled={!expired || claiming || claimableDelegations.length === 0}
           onClick={onClaim}
         >
           {claiming ? (
@@ -83,7 +103,7 @@ export function ClaimActionPanel({ vault }: { vault: VaultViewModel }) {
           ) : (
             <Gift className="h-4 w-4" />
           )}
-          Execute claim()
+          {expired ? "Execute claim()" : "Claim unlocks after the inactivity period"}
         </Button>
       )}
     </div>

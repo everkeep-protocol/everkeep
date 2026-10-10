@@ -1,20 +1,20 @@
 "use client";
 
 import { Badge } from "@/components/ui/badge";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDuration } from "@/lib/format";
 import type { VaultViewModel } from "@/types/vault";
 import { CheckInCountdown } from "@/components/dashboard/check-in-countdown";
 
 export function ClaimConditionStatus({ vault }: { vault: VaultViewModel }) {
   const claimable = vault.conditionStatus === "claimable";
-  const claimed = vault.status === "claimed";
+  const drained = claimable && !vault.hasClaimableTokens;
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={claimable ? "claimable" : "outline"}>
-          {claimed
-            ? "CLAIMED"
+          {drained
+            ? "NOTHING LEFT TO CLAIM"
             : claimable
               ? "CONDITION MET"
               : "PENDING INACTIVITY"}
@@ -23,7 +23,9 @@ export function ClaimConditionStatus({ vault }: { vault: VaultViewModel }) {
       <dl className="grid gap-3 text-sm sm:grid-cols-2">
         <div>
           <dt className="text-muted-foreground">Inactivity threshold</dt>
-          <dd className="font-medium">{vault.inactivityThresholdDays} days</dd>
+          <dd className="font-medium">
+            {formatDuration(vault.inactivityPeriodSeconds)}
+          </dd>
         </div>
         <div>
           <dt className="text-muted-foreground">Last owner check-in</dt>
@@ -34,11 +36,13 @@ export function ClaimConditionStatus({ vault }: { vault: VaultViewModel }) {
           <dd className="font-medium">{formatDateTime(vault.claimEligibleAt)}</dd>
         </div>
         <div>
-          <dt className="text-muted-foreground">Protected assets</dt>
-          <dd className="font-medium">{vault.totalProtectedDisplay}</dd>
+          <dt className="text-muted-foreground">Claimable now</dt>
+          <dd className="font-mono text-xs font-medium [overflow-wrap:anywhere]">
+            {vault.totalProtectedDisplay}
+          </dd>
         </div>
       </dl>
-      {!claimable && !claimed && (
+      {!claimable && (
         <CheckInCountdown
           deadlineIso={vault.claimEligibleAt}
           conditionStatus={vault.conditionStatus}

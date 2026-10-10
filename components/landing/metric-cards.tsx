@@ -6,7 +6,7 @@ const metrics = [
     icon: LockKeyhole,
     title: "Non-Custodial",
     description:
-      "You retain control until conditions are met. Assets live in a program-controlled vault—not a company wallet.",
+      "Assets never leave your wallet. The vault PDA only holds a revocable SPL delegate allowance.",
   },
   {
     icon: Layers,
@@ -18,7 +18,7 @@ const metrics = [
     icon: Zap,
     title: "Solana-Native",
     description:
-      "Fast, low-cost transactions built for SOL and SPL assets with wallet-adapter ready integration.",
+      "Fast, low-cost transactions for SPL Token and Token-2022 assets, signed with Phantom.",
   },
 ];
 

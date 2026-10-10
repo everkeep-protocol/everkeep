@@ -2,12 +2,14 @@
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { isValidSolanaAddress } from "@/lib/validators";
+import { beneficiaryError } from "@/lib/everkeep/draft";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 
 export function StepBeneficiary() {
-  const { wizardDraft, setWizardDraft } = useEverKeepApp();
-  const valid = isValidSolanaAddress(wizardDraft.beneficiary);
+  const { wizardDraft, setWizardDraft, wallet } = useEverKeepApp();
+  const error = wizardDraft.beneficiary
+    ? beneficiaryError(wizardDraft.beneficiary, wallet.publicKey)
+    : null;
 
   return (
     <div className="space-y-4">
@@ -23,19 +25,16 @@ export function StepBeneficiary() {
         <Input
           id="beneficiary"
           placeholder="7xK...92A"
+          className="font-mono text-xs"
           value={wizardDraft.beneficiary}
           onChange={(e) => setWizardDraft({ beneficiary: e.target.value })}
         />
-        {wizardDraft.beneficiary && !valid && (
-          <p className="text-xs text-destructive">
-            Enter a valid base58 Solana address (32–44 characters).
-          </p>
-        )}
+        {error && <p className="text-xs text-destructive">{error}</p>}
       </div>
     </div>
   );
 }
 
-export function isStepBeneficiaryValid(beneficiary: string) {
-  return isValidSolanaAddress(beneficiary);
+export function isStepBeneficiaryValid(beneficiary: string, owner: string | null) {
+  return beneficiaryError(beneficiary, owner) === null;
 }

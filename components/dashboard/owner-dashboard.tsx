@@ -8,7 +8,7 @@ import { OwnerActionBar } from "./owner-action-bar";
 import { VaultOverviewCard } from "./vault-overview-card";
 
 export function OwnerDashboard() {
-  const { vault, openWizard, wallet, connectWallet, setDemoScenario } =
+  const { vault, vaultLoading, openWizard, wallet, connectWallet } =
     useEverKeepApp();
 
   if (wallet.status !== "connected") {
@@ -38,6 +38,17 @@ export function OwnerDashboard() {
     );
   }
 
+  if (!vault && vaultLoading) {
+    return (
+      <Card>
+        <CardContent className="flex items-center gap-3 p-6 text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Loading your vault from the cluster…
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (!vault) {
     return (
       <Card className="glass-card-active text-center">
@@ -46,24 +57,13 @@ export function OwnerDashboard() {
         </CardHeader>
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">
-            Create a vault, deposit assets, and set inactivity rules for your
-            beneficiary.
+            Create a vault, approve token allowances, and set inactivity rules
+            for your beneficiary.
           </p>
           <Button onClick={() => openWizard("create")} className="gap-2">
             <Plus className="h-4 w-4" />
             Create Inheritance Plan
           </Button>
-          <p className="text-xs text-muted-foreground">
-            Or{" "}
-            <button
-              type="button"
-              onClick={() => setDemoScenario("owner-active")}
-              className="text-everkeep-cyan hover:underline"
-            >
-              load the demo vault
-            </button>
-            .
-          </p>
         </CardContent>
       </Card>
     );

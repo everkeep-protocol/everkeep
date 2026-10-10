@@ -3,7 +3,7 @@ import { cn } from "@/lib/utils";
 const stepLabels = [
   "Beneficiary",
   "Rules",
-  "Deposit",
+  "Approve",
   "Confirm",
 ];
 

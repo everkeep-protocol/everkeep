@@ -13,12 +13,9 @@ import { truncateAddress } from "@/lib/validators";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 import { useClipboard } from "@/hooks/use-clipboard";
 
-/**
- * Swap boundary: replace mock handlers with @solana/wallet-adapter-react
- * useWallet().connect / disconnect / publicKey
- */
 export function ConnectWalletButton() {
-  const { wallet, connectWallet, disconnectWallet } = useEverKeepApp();
+  const { wallet, phantomInstalled, connectWallet, disconnectWallet } =
+    useEverKeepApp();
   const { copy } = useClipboard();
 
   if (wallet.status === "connecting") {
@@ -53,9 +50,9 @@ export function ConnectWalletButton() {
   }
 
   return (
-    <Button onClick={() => connectWallet()} className="gap-2">
+    <Button onClick={connectWallet} className="gap-2">
       <Wallet className="h-4 w-4" />
-      Connect Wallet
+      {phantomInstalled ? "Connect Wallet" : "Install Phantom"}
     </Button>
   );
 }

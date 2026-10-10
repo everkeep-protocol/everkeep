@@ -13,8 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { useToast } from "@/hooks/use-toast";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
+import type { WizardMode } from "@/types/wizard";
 import { WizardStepper } from "./wizard-stepper";
 import {
   isStepBeneficiaryValid,
@@ -27,10 +27,9 @@ import {
 } from "./steps/step-deposit";
 import { StepSummary } from "./steps/step-summary";
 
-const titles: Record<string, string> = {
+const titles: Record<WizardMode, string> = {
   create: "Create inheritance plan",
-  update: "Update inheritance plan",
-  "deposit-only": "Deposit to vault",
+  approve: "Approve SPL tokens",
 };
 
 export function CreatePlanDialog() {
@@ -38,12 +37,12 @@ export function CreatePlanDialog() {
     wizardOpen,
     wizardMode,
     wizardDraft,
+    wallet,
+    ownerTokenAccounts,
     closeWizard,
     completeCreatePlan,
-    completeUpdatePlan,
-    completeDeposit,
+    completeApprove,
   } = useEverKeepApp();
-  const { toast } = useToast();
   const router = useRouter();
   const pathname = usePathname();
   const [step, setStep] = useState(1);
@@ -53,13 +52,8 @@ export function CreatePlanDialog() {
     if (wizardOpen) setStep(1);
   }, [wizardOpen, wizardMode]);
 
-  const maxStep = wizardMode === "deposit-only" ? 2 : 4;
-  const effectiveStep =
-    wizardMode === "deposit-only"
-      ? step === 1
-        ? 3
-        : 4
-      : step;
+  const maxStep = wizardMode === "approve" ? 2 : 4;
+  const effectiveStep = wizardMode === "approve" ? step + 2 : step;
 
   const resetAndClose = () => {
     setStep(1);
@@ -67,28 +61,25 @@ export function CreatePlanDialog() {
   };
 
   const canNext = () => {
-    if (wizardMode === "deposit-only") {
-      if (step === 1) return isStepDepositValid(wizardDraft.depositSol, wizardMode);
-      return true;
+    switch (effectiveStep) {
+      case 1:
+        return isStepBeneficiaryValid(wizardDraft.beneficiary, wallet.publicKey);
+      case 3:
+        return isStepDepositValid(wizardDraft, wizardMode, ownerTokenAccounts);
+      default:
+        return true;
     }
-    if (step === 1) return isStepBeneficiaryValid(wizardDraft.beneficiary);
-    if (step === 2) return true;
-    if (step === 3)
-      return isStepDepositValid(wizardDraft.depositSol, wizardMode);
-    return true;
   };
 
   const handleConfirm = async () => {
     setSubmitting(true);
     try {
-      if (wizardMode === "create") await completeCreatePlan();
-      else if (wizardMode === "update") await completeUpdatePlan();
-      else await completeDeposit();
+      const signature =
+        wizardMode === "create"
+          ? await completeCreatePlan()
+          : await completeApprove();
+      if (!signature) return;
       setStep(1);
-      toast({
-        title: "Transaction confirmed",
-        description: "On-chain execution simulated successfully.",
-      });
       if (wizardMode === "create" && pathname !== ROUTES.dashboard) {
         router.push(ROUTES.dashboard);
       }
@@ -98,7 +89,7 @@ export function CreatePlanDialog() {
   };
 
   const onOpenChange = (open: boolean) => {
-    if (!open) resetAndClose();
+    if (!open && !submitting) resetAndClose();
   };
 
   return (
@@ -108,28 +99,17 @@ export function CreatePlanDialog() {
           <DialogTitle>{titles[wizardMode]}</DialogTitle>
           <DialogDescription>
             {wizardMode === "create"
-              ? "Define beneficiary, rules, and initial deposit."
-              : wizardMode === "update"
-                ? "Update permitted plan parameters."
-                : "Add assets to your active vault."}
+              ? "Define beneficiary, rules, and token allowances."
+              : "Set the vault PDA as delegate on your token accounts."}
           </DialogDescription>
         </DialogHeader>
 
         <WizardStepper currentStep={effectiveStep} />
 
-        {wizardMode === "deposit-only" ? (
-          <>
-            {step === 1 && <StepDeposit />}
-            {step === 2 && <StepSummary />}
-          </>
-        ) : (
-          <>
-            {step === 1 && <StepBeneficiary />}
-            {step === 2 && <StepRules />}
-            {step === 3 && <StepDeposit />}
-            {step === 4 && <StepSummary />}
-          </>
-        )}
+        {effectiveStep === 1 && <StepBeneficiary />}
+        {effectiveStep === 2 && <StepRules />}
+        {effectiveStep === 3 && <StepDeposit />}
+        {effectiveStep === 4 && <StepSummary />}
 
         <DialogFooter className="gap-2 sm:gap-0">
           {step > 1 && (

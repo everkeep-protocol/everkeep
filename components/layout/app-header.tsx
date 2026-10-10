@@ -3,26 +3,13 @@
 import Link from "next/link";
 import { Globe, Shield } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { ConnectWalletButton } from "@/components/wallet/connect-wallet-button";
-import { DEMO_SCENARIOS, ROUTES } from "@/lib/constants";
+import { ROUTES } from "@/lib/constants";
+import { CLUSTER_LABELS } from "@/lib/everkeep/config";
 import { useEverKeepApp } from "@/providers/everkeep-app-provider";
 
 export function AppHeader() {
-  const {
-    wallet,
-    vault,
-    toggleCluster,
-    demoScenario,
-    setDemoScenario,
-  } = useEverKeepApp();
+  const { wallet, vault } = useEverKeepApp();
 
   return (
     <header className="sticky top-0 z-40 border-b border-white/5 bg-everkeep-slate/80 backdrop-blur-xl">
@@ -65,37 +52,21 @@ export function AppHeader() {
         </nav>
 
         <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-          <Select value={demoScenario} onValueChange={(v) => setDemoScenario(v as typeof demoScenario)}>
-            <SelectTrigger className="hidden w-[180px] lg:flex">
-              <SelectValue placeholder="Demo scenario" />
-            </SelectTrigger>
-            <SelectContent>
-              {DEMO_SCENARIOS.map((s) => (
-                <SelectItem key={s.id} value={s.id}>
-                  {s.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={toggleCluster}
-            className="gap-2"
+          <div
+            className="inline-flex h-9 items-center gap-2 rounded-md border border-white/15 px-3"
+            title={`Cluster is set by NEXT_PUBLIC_SOLANA_CLUSTER`}
           >
             <Globe className="h-3.5 w-3.5" />
             <Badge
-              variant={wallet.cluster === "devnet" ? "devnet" : "mainnet"}
+              variant={wallet.cluster === "mainnet" ? "mainnet" : "devnet"}
               className="border-0 px-1.5 py-0"
             >
-              {wallet.cluster === "devnet" && (
+              {wallet.cluster !== "mainnet" && (
                 <span className="mr-1.5 inline-block h-1.5 w-1.5 animate-pulse rounded-full bg-everkeep-cyan" />
               )}
-              {wallet.cluster === "devnet" ? "Devnet" : "Mainnet"}
+              {CLUSTER_LABELS[wallet.cluster]}
             </Badge>
-          </Button>
+          </div>
 
           {vault && wallet.status === "connected" && (
             <Badge variant="default" className="hidden sm:inline-flex">
